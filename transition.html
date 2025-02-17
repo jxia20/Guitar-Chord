@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chord Transition Practicer</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
+    .navbar { text-align: center; margin-bottom: 20px; }
+    .navbar a { text-decoration: none; padding: 8px 16px; background: #ddd; margin: 0 5px; color: #000; border-radius: 4px; }
+    .navbar a:hover { background: #ccc; }
+    .container { max-width: 700px; background: #fff; margin: 0 auto; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); text-align: center; }
+    h1 { margin-bottom: 20px; }
+    .chord-images { display: flex; justify-content: center; gap: 20px; margin-bottom: 20px; }
+    svg { background: #fff; border: 1px solid #ccc; }
+    .timer { font-size: 20px; margin: 10px 0; }
+    button { padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <div class="navbar">
+    <a href="index.html">Chord Visualizer</a>
+    <a href="transition.html">Chord Transition Practicer</a>
+  </div>
+  
+  <div class="container">
+    <h1>Chord Transition Practicer</h1>
+    <p>
+      Welcome to Chord Transition Practicer—a tool to improve your chord transitions.
+      In each round, two chords are randomly chosen and their diagrams are shown.
+      Practice switching between them for 30 seconds. Use the pause and skip buttons as needed.
+    </p>
+    
+    <!-- Container for chord diagrams -->
+    <div class="chord-images">
+      <svg id="chordImage1" width="180" height="250"></svg>
+      <svg id="chordImage2" width="180" height="250"></svg>
+    </div>
+    
+    <div class="timer" id="timerDisplay">Time: 30</div>
+    
+    <button id="startButton">Start Practice</button>
+    <button id="pauseButton" disabled>Pause</button>
+    <button id="skipButton" disabled>Skip Pair</button>
+  </div>
+  
+  <script>
+    // Chord library (same as in index.html)
+    const chords = {
+      "C": [
+        { positions: ["x", 3, 2, 0, 1, 0], baseFret: 1 },
+        { positions: [8, 10, 10, 9, 8, 8], baseFret: 8 }
+      ],
+      "G": [
+        { positions: [3, 2, 0, 0, 0, 3], baseFret: 1 },
+        { positions: [10, 10, 9, 9, 8, 10], baseFret: 8 }
+      ],
+      "Am": [
+        { positions: ["x", 0, 2, 2, 1, 0], baseFret: 1 },
+        { positions: [5, 7, 7, 5, 5, 5], baseFret: 5 }
+      ],
+      "Em": [
+        { positions: [0, 2, 2, 0, 0, 0], baseFret: 1 },
+        { positions: [7, 9, 9, 7, 7, 7], baseFret: 7 }
+      ],
+      "C7": [
+        { positions: ["x", 3, 2, 3, 1, 0], baseFret: 1 },
+        { positions: [8, 10, 8, 9, 8, 8], baseFret: 8 }
+      ],
+      "G7": [
+        { positions: [3, 2, 0, 0, 1, 1], baseFret: 1 },
+        { positions: [10, 10, 9, 10, 8, 10], baseFret: 8 }
+      ],
+      "Am7": [
+        { positions: ["x", 0, 2, 0, 1, 0], baseFret: 1 },
+        { positions: [5, 7, 5, 5, 5, 5], baseFret: 5 }
+      ],
+      "Em7": [
+        { positions: [0, 2, 0, 0, 0, 0], baseFret: 1 },
+        { positions: [7, 9, 7, 7, 7, 7], baseFret: 7 }
+      ],
+      "Bdim": [
+        { positions: ["x", 2, 3, 1, "x", "x"], baseFret: 1 }
+      ],
+      "Bdim7": [
+        { positions: ["x", 2, 3, 1, 3, "x"], baseFret: 1 }
+      ],
+      "Caug": [
+        { positions: ["x", 3, 2, 1, "x", "x"], baseFret: 1 }
+      ],
+      "Cmaj7": [
+        { positions: ["x", 3, 2, 0, 0, 0], baseFret: 1 }
+      ],
+      "Bm7b5": [
+        { positions: ["x", 2, 3, 2, "x", "x"], baseFret: 1 }
+      ]
+    };
+
+    // List of chord names for practice
+    const chordNames = Object.keys(chords);
+    
+    let currentPair = [];
+    let timerInterval;
+    let timeLeft = 30;
+    let isPaused = false;
+    
+    // Adapted drawChord: draws a chord on a given SVG element (by id)
+    function drawChordOnElement(chordName, voicingIndex, elementId) {
+      const svg = document.getElementById(elementId);
+      svg.innerHTML = "";
+      const voicings = chords[chordName];
+      if (!voicings || voicings.length === 0) return;
+      if (voicingIndex < 0) voicingIndex = 0;
+      if (voicingIndex >= voicings.length) voicingIndex = voicings.length - 1;
+      
+      const { positions, baseFret } = voicings[voicingIndex];
+      const svgWidth = parseInt(svg.getAttribute("width"));
+      const svgHeight = parseInt(svg.getAttribute("height"));
+      const marginX = 20, marginRight = 20, marginTop = 20, marginBottom = 20;
+      const fretCount = baseFret === 1 ? 5 : 4;
+      const boardWidth = svgWidth - marginX - marginRight;
+      const boardHeight = svgHeight - marginTop - marginBottom;
+      const stringCount = 6;
+      const stringSpacing = boardWidth / (stringCount - 1);
+      const fretSpacing = boardHeight / fretCount;
+      const svgns = "http://www.w3.org/2000/svg";
+      
+      // Draw fretboard background
+      const fretboardBg = document.createElementNS(svgns, "rect");
+      fretboardBg.setAttribute("x", marginX);
+      fretboardBg.setAttribute("y", marginTop);
+      fretboardBg.setAttribute("width", boardWidth);
+      fretboardBg.setAttribute("height", boardHeight);
+      fretboardBg.setAttribute("fill", "#f9f9f9");
+      fretboardBg.setAttribute("stroke", "#000");
+      fretboardBg.setAttribute("stroke-width", "1");
+      svg.appendChild(fretboardBg);
+      
+      // Strings (vertical lines)
+      for (let i = 0; i < stringCount; i++) {
+        const x = marginX + i * stringSpacing;
+        const vLine = document.createElementNS(svgns, "line");
+        vLine.setAttribute("x1", x);
+        vLine.setAttribute("y1", marginTop);
+        vLine.setAttribute("x2", x);
+        vLine.setAttribute("y2", marginTop + boardHeight);
+        vLine.setAttribute("stroke", "#000");
+        vLine.setAttribute("stroke-width", "1");
+        svg.appendChild(vLine);
+      }
+      
+      // Frets (horizontal lines)
+      for (let i = 0; i <= fretCount; i++) {
+        const y = marginTop + i * fretSpacing;
+        const hLine = document.createElementNS(svgns, "line");
+        hLine.setAttribute("x1", marginX);
+        hLine.setAttribute("y1", y);
+        hLine.setAttribute("x2", marginX + boardWidth);
+        hLine.setAttribute("y2", y);
+        hLine.setAttribute("stroke", "#000");
+        hLine.setAttribute("stroke-width", (i === 0 && baseFret === 1) ? "3" : "1");
+        svg.appendChild(hLine);
+      }
+      
+      // Open/muted markers above nut
+      for (let i = 0; i < stringCount; i++) {
+        const pos = positions[i];
+        const x = marginX + i * stringSpacing;
+        const marker = document.createElementNS(svgns, "text");
+        marker.setAttribute("x", x);
+        marker.setAttribute("y", marginTop - 5);
+        marker.setAttribute("text-anchor", "middle");
+        marker.setAttribute("font-size", "12");
+        marker.textContent = (pos === "x" || pos === "X") ? "X" : (pos === 0 || pos === "0") ? "O" : "";
+        svg.appendChild(marker);
+      }
+      
+      // Draw finger positions as circles
+      for (let i = 0; i < stringCount; i++) {
+        const pos = positions[i];
+        if (pos !== "x" && pos !== "X" && pos !== 0 && pos !== "0") {
+          const fretIndex = pos - baseFret;
+          if (fretIndex >= 0 && fretIndex < fretCount) {
+            const x = marginX + i * stringSpacing;
+            const y = marginTop + fretSpacing * fretIndex + fretSpacing / 2;
+            const circle = document.createElementNS(svgns, "circle");
+            circle.setAttribute("cx", x);
+            circle.setAttribute("cy", y);
+            circle.setAttribute("r", 6);
+            circle.setAttribute("fill", "#000");
+            svg.appendChild(circle);
+          }
+        }
+      }
+    }
+    
+    // Update both chord images for the current pair (default voicing index = 0)
+    function updateChordImages(pair) {
+      drawChordOnElement(pair[0], 0, "chordImage1");
+      drawChordOnElement(pair[1], 0, "chordImage2");
+    }
+    
+    // Choose a random pair of distinct chords
+    function getRandomChordPair() {
+      const first = chordNames[Math.floor(Math.random() * chordNames.length)];
+      let second = chordNames[Math.floor(Math.random() * chordNames.length)];
+      while (second === first) {
+        second = chordNames[Math.floor(Math.random() * chordNames.length)];
+      }
+      return [first, second];
+    }
+    
+    // Timer and round control
+    function updateTimerDisplay() {
+      document.getElementById("timerDisplay").textContent = "Time: " + timeLeft;
+    }
+    
+    function startTimer() {
+      timeLeft = 30;
+      updateTimerDisplay();
+      timerInterval = setInterval(() => {
+        if (!isPaused) {
+          timeLeft--;
+          updateTimerDisplay();
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            document.getElementById("pauseButton").disabled = true;
+            document.getElementById("skipButton").disabled = false;
+          }
+        }
+      }, 1000);
+    }
+    
+    function resetRound() {
+      clearInterval(timerInterval);
+      isPaused = false;
+      document.getElementById("pauseButton").textContent = "Pause";
+      document.getElementById("pauseButton").disabled = false;
+      document.getElementById("skipButton").disabled = true;
+      timeLeft = 30;
+      updateTimerDisplay();
+    }
+    
+    // Global current chord pair
+    let currentPair = [];
+    
+    // Start new round with a random pair
+    function startNewRound() {
+      currentPair = getRandomChordPair();
+      updateChordImages(currentPair);
+      resetRound();
+      startTimer();
+    }
+    
+    // Button event listeners
+    document.getElementById("startButton").addEventListener("click", () => {
+      startNewRound();
+      document.getElementById("startButton").disabled = true;
+    });
+    
+    document.getElementById("pauseButton").addEventListener("click", () => {
+      if (isPaused) {
+        // Resume
+        isPaused = false;
+        document.getElementById("pauseButton").textContent = "Pause";
+      } else {
+        // Pause
+        isPaused = true;
+        document.getElementById("pauseButton").textContent = "Resume";
+      }
+    });
+    
+    document.getElementById("skipButton").addEventListener("click", () => {
+      startNewRound();
+    });
+  </script>
+</body>
+</html>
